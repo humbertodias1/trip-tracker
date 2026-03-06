@@ -1,0 +1,69 @@
+@model ItineraryItem
+@{
+    ViewData["Title"] = "Edit Itinerary Item";
+}
+
+<h1 class="h3 mb-3">Edit Itinerary Item</h1>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="TripId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Title" class="form-label"></label>
+                    <input asp-for="Title" class="form-control" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="Type" class="form-label"></label>
+                    <select asp-for="Type" asp-items="Html.GetEnumSelectList<ItineraryItemType>()" class="form-select"></select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="Status" class="form-label"></label>
+                    <select asp-for="Status" asp-items="Html.GetEnumSelectList<ItineraryStatus>()" class="form-select"></select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="StartDateTime" class="form-label"></label>
+                    <input asp-for="StartDateTime" type="datetime-local" class="form-control" value="@Model.StartDateTime.ToString("yyyy-MM-ddTHH:mm")" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="EndDateTime" class="form-label"></label>
+                    <input asp-for="EndDateTime" type="datetime-local" class="form-control" value="@Model.EndDateTime?.ToString("yyyy-MM-ddTHH:mm")" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="ConfirmationNumber" class="form-label"></label>
+                    <input asp-for="ConfirmationNumber" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LocationName" class="form-label"></label>
+                    <input asp-for="LocationName" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Address" class="form-label"></label>
+                    <input asp-for="Address" class="form-control" />
+                </div>
+                <div class="col-12">
+                    <label asp-for="MapLink" class="form-label"></label>
+                    <input asp-for="MapLink" class="form-control" />
+                </div>
+                <div class="col-12">
+                    <label asp-for="Notes" class="form-label"></label>
+                    <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-primary">Save</button>
+                <a asp-action="Dashboard" asp-route-id="@Model.TripId" asp-route-tab="itinerary" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+

@@ -1,0 +1,23 @@
+# Build outputs
+bin/
+obj/
+
+# IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local databases (legacy SQLite)
+*.db
+*.db-shm
+*.db-wal
+
+# Logs and env files
+*.log
+.env
+.env.*

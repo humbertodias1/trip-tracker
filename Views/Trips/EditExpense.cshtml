@@ -1,0 +1,84 @@
+@using TripTracker.Services
+@model Expense
+@{
+    ViewData["Title"] = "Edit Expense";
+    var roughRates = CurrencyEstimator.GetRatesToUsd();
+}
+
+<h1 class="h3 mb-3">Edit Expense</h1>
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="TripId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label asp-for="Date" class="form-label"></label>
+                    <input asp-for="Date" type="date" class="form-control" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="Category" class="form-label"></label>
+                    <select asp-for="Category" asp-items="Html.GetEnumSelectList<ExpenseCategory>()" class="form-select"></select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="OriginalAmount" class="form-label"></label>
+                    <input id="edit-expense-original-amount" asp-for="OriginalAmount" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="OriginalCurrency" class="form-label"></label>
+                    <select id="edit-expense-original-currency" asp-for="OriginalCurrency" class="form-select">
+                        @foreach (var rate in roughRates.OrderBy(r => r.Key))
+                        {
+                            if (string.Equals(rate.Key, Model.OriginalCurrency, StringComparison.OrdinalIgnoreCase))
+                            {
+                                <option value="@rate.Key" selected>@rate.Key (1 @rate.Key = @rate.Value.ToString("0.####") USD)</option>
+                            }
+                            else
+                            {
+                                <option value="@rate.Key">@rate.Key (1 @rate.Key = @rate.Value.ToString("0.####") USD)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="ConvertedAmount" class="form-label"></label>
+                    <input id="edit-expense-converted-amount" asp-for="ConvertedAmount" class="form-control" readonly />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="PaidBy" class="form-label"></label>
+                    <input asp-for="PaidBy" class="form-control" />
+                </div>
+                <div class="col-md-5">
+                    <label asp-for="SplitWith" class="form-label"></label>
+                    <input asp-for="SplitWith" class="form-control" />
+                </div>
+                <div class="col-12">
+                    <label asp-for="Notes" class="form-label"></label>
+                    <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                </div>
+                <input id="edit-expense-home-currency" type="hidden" value="@(ViewBag.HomeCurrency ?? "USD")" />
+                <div id="edit-expense-estimate-status" class="col-12 small text-muted">Rough estimate using static rates (shown as USD references in dropdown).</div>
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-primary">Save</button>
+                <a asp-action="Dashboard" asp-route-id="@Model.TripId" asp-route-tab="expenses" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/currency-estimator.js" asp-append-version="true"></script>
+    <script>
+        attachExpenseEstimator({
+            amountSelector: "#edit-expense-original-amount",
+            fromSelector: "#edit-expense-original-currency",
+            toSelector: "#edit-expense-home-currency",
+            outputSelector: "#edit-expense-converted-amount",
+            statusSelector: "#edit-expense-estimate-status"
+        });
+    </script>
+}

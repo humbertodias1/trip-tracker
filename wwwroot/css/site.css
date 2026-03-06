@@ -1,0 +1,12 @@
+body {
+    min-height: 100vh;
+}
+
+.card {
+    border: 1px solid #e9ecef;
+}
+
+.table td,
+.table th {
+    vertical-align: middle;
+}

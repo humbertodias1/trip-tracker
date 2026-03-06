@@ -1,0 +1,42 @@
+@model IEnumerable<Trip>
+@{
+    ViewData["Title"] = "My Trips";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">My Trips</h1>
+    <a asp-action="Create" class="btn btn-primary">New Trip</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No trips yet. Create your first trip.</div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var trip in Model)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h2 class="h5">@trip.Name</h2>
+                        <p class="mb-1 text-muted">@trip.Destinations</p>
+                        <p class="mb-3">
+                            @trip.StartDate.ToString("yyyy-MM-dd") to @trip.EndDate.ToString("yyyy-MM-dd")
+                        </p>
+                        <a asp-action="Dashboard" asp-route-id="@trip.Id" class="btn btn-sm btn-outline-primary">Open Dashboard</a>
+                    </div>
+                    <div class="card-footer bg-white">
+                        <form asp-action="Delete" method="post" onsubmit="return confirm('Delete this trip?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@trip.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+

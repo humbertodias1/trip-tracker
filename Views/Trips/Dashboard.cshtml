@@ -1,0 +1,516 @@
+@using TripTracker.Services
+@model TripDashboardViewModel
+@{
+    ViewData["Title"] = $"{Model.Trip.Name} Dashboard";
+    var active = Model.ActiveTab?.ToLowerInvariant() ?? "itinerary";
+    var roughRates = CurrencyEstimator.GetRatesToUsd();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-0">@Model.Trip.Name</h1>
+        <div class="text-muted">@Model.Trip.Destinations | @Model.Trip.StartDate:yyyy-MM-dd - @Model.Trip.EndDate:yyyy-MM-dd</div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Back to Trips</a>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">What's next?</h2>
+                @if (Model.NextItem is null)
+                {
+                    <p class="mb-0 text-muted">No upcoming itinerary items.</p>
+                }
+                else
+                {
+                    <p class="mb-1 fw-semibold">@Model.NextItem.Title</p>
+                    <p class="mb-0 text-muted">@Model.NextItem.StartDateTime:g (@Model.NextItem.Type)</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">Budget Summary</h2>
+                <p class="mb-0 fs-5 fw-bold">@Model.Trip.HomeCurrency @Model.ExpenseTotal.ToString("N2")</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">Packing Completion</h2>
+                <p class="mb-2 fs-5 fw-bold">@Model.PackingCompletionPercentage.ToString("0.0")%</p>
+                <div class="progress">
+                    <div class="progress-bar" style="width:@Model.PackingCompletionPercentage%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link @(active == "itinerary" ? "active" : "")" asp-action="Dashboard" asp-route-id="@Model.Trip.Id" asp-route-tab="itinerary">Itinerary</a></li>
+    <li class="nav-item"><a class="nav-link @(active == "expenses" ? "active" : "")" asp-action="Dashboard" asp-route-id="@Model.Trip.Id" asp-route-tab="expenses">Expenses</a></li>
+    <li class="nav-item"><a class="nav-link @(active == "packing" ? "active" : "")" asp-action="Dashboard" asp-route-id="@Model.Trip.Id" asp-route-tab="packing">Packing</a></li>
+    <li class="nav-item"><a class="nav-link @(active == "documents" ? "active" : "")" asp-action="Dashboard" asp-route-id="@Model.Trip.Id" asp-route-tab="documents">Documents</a></li>
+    <li class="nav-item"><a class="nav-link @(active == "settings" ? "active" : "")" asp-action="Dashboard" asp-route-id="@Model.Trip.Id" asp-route-tab="settings">Settings</a></li>
+</ul>
+
+@if (active == "itinerary")
+{
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Filters</div>
+        <div class="card-body">
+            <form method="get" class="row g-2">
+                <input type="hidden" name="id" value="@Model.Trip.Id" />
+                <input type="hidden" name="tab" value="itinerary" />
+                <div class="col-md-4">
+                    <select name="typeFilter" class="form-select">
+                        <option value="">All Types</option>
+                        @foreach (var type in Enum.GetValues<ItineraryItemType>())
+                        {
+                            if (Model.TypeFilter == type)
+                            {
+                                <option value="@type" selected>@type</option>
+                            }
+                            else
+                            {
+                                <option value="@type">@type</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select name="statusFilter" class="form-select">
+                        <option value="">All Statuses</option>
+                        @foreach (var status in Enum.GetValues<ItineraryStatus>())
+                        {
+                            if (Model.StatusFilter == status)
+                            {
+                                <option value="@status" selected>@status</option>
+                            }
+                            else
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button class="btn btn-primary">Apply</button>
+                    <a class="btn btn-outline-secondary" asp-action="Dashboard" asp-route-id="@Model.Trip.Id" asp-route-tab="itinerary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Add Itinerary Item</div>
+        <div class="card-body">
+            <form asp-action="AddItinerary" method="post" class="row g-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="tripId" value="@Model.Trip.Id" />
+                <div class="col-md-4"><input name="Title" class="form-control" placeholder="Title" required /></div>
+                <div class="col-md-2">
+                    <select name="Type" class="form-select">
+                        @foreach (var type in Enum.GetValues<ItineraryItemType>())
+                        {
+                            <option value="@type">@type</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3"><input name="StartDateTime" type="datetime-local" class="form-control" required /></div>
+                <div class="col-md-3"><input name="EndDateTime" type="datetime-local" class="form-control" /></div>
+                <div class="col-md-3"><input name="LocationName" class="form-control" placeholder="Location" /></div>
+                <div class="col-md-3"><input name="Address" class="form-control" placeholder="Address" /></div>
+                <div class="col-md-3"><input name="MapLink" class="form-control" placeholder="Map Link" /></div>
+                <div class="col-md-3"><input name="ConfirmationNumber" class="form-control" placeholder="Confirmation #" /></div>
+                <div class="col-md-3">
+                    <select name="Status" class="form-select">
+                        @foreach (var status in Enum.GetValues<ItineraryStatus>())
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-9"><input name="Notes" class="form-control" placeholder="Notes" /></div>
+                <div class="col-md-3"><button class="btn btn-primary w-100">Add</button></div>
+            </form>
+        </div>
+    </div>
+
+    @foreach (var day in Model.ItineraryDays)
+    {
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">@day.Date.ToString("dddd, MMM dd")</div>
+            <div class="card-body p-0">
+                @if (!day.Items.Any())
+                {
+                    <div class="p-3 text-muted">No itinerary items.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Location</th>
+                                    <th>Details</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in day.Items)
+                                {
+                                    <tr>
+                                        <td>@item.StartDateTime.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td>@(item.EndDateTime?.ToString("yyyy-MM-dd HH:mm") ?? "-")</td>
+                                        <td>@item.Title</td>
+                                        <td>@item.Type</td>
+                                        <td>@item.Status</td>
+                                        <td>@(string.IsNullOrWhiteSpace(item.LocationName) ? "-" : item.LocationName)</td>
+                                        <td>
+                                            <div><strong>Address:</strong> @(string.IsNullOrWhiteSpace(item.Address) ? "-" : item.Address)</div>
+                                            <div><strong>Confirmation:</strong> @(string.IsNullOrWhiteSpace(item.ConfirmationNumber) ? "-" : item.ConfirmationNumber)</div>
+                                            <div><strong>Map:</strong>
+                                                @if (string.IsNullOrWhiteSpace(item.MapLink))
+                                                {
+                                                    <span>-</span>
+                                                }
+                                                else
+                                                {
+                                                    <a href="@item.MapLink" target="_blank" rel="noopener noreferrer">Open link</a>
+                                                }
+                                            </div>
+                                            <div><strong>Notes:</strong> @(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</div>
+                                        </td>
+                                        <td class="text-end">
+                                            <a asp-action="EditItinerary" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                            <form asp-action="DeleteItinerary" method="post" class="d-inline" onsubmit="return confirm('Delete item?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+@if (active == "expenses")
+{
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Add Expense</div>
+        <div class="card-body">
+            <form asp-action="AddExpense" method="post" class="row g-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="tripId" value="@Model.Trip.Id" />
+                <div class="col-md-2"><input name="Date" type="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" /></div>
+                <div class="col-md-2">
+                    <select name="Category" class="form-select">
+                        @foreach (var category in Enum.GetValues<ExpenseCategory>())
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2"><input name="OriginalAmount" type="number" step="0.01" min="0" class="form-control" placeholder="Original" /></div>
+                <div class="col-md-2">
+                    <select id="expense-original-currency" name="OriginalCurrency" class="form-select">
+                        @foreach (var rate in roughRates.OrderBy(r => r.Key))
+                        {
+                            if (string.Equals(rate.Key, Model.Trip.HomeCurrency, StringComparison.OrdinalIgnoreCase))
+                            {
+                                <option value="@rate.Key" selected>@rate.Key (1 @rate.Key = @rate.Value.ToString("0.####") USD)</option>
+                            }
+                            else
+                            {
+                                <option value="@rate.Key">@rate.Key (1 @rate.Key = @rate.Value.ToString("0.####") USD)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2"><input id="expense-converted-amount" name="ConvertedAmount" type="number" step="0.01" min="0" class="form-control" placeholder="Converted" readonly /></div>
+                <div class="col-md-2"><input name="PaidBy" class="form-control" placeholder="Paid By" /></div>
+                <div class="col-md-1"><button class="btn btn-primary w-100">Add</button></div>
+                <div class="col-md-3"><input name="SplitWith" class="form-control" placeholder="Split With" /></div>
+                <div class="col-md-9"><input name="Notes" class="form-control" placeholder="Notes" /></div>
+                <input id="expense-home-currency" type="hidden" value="@Model.Trip.HomeCurrency" />
+                <div id="expense-estimate-status" class="col-12 small text-muted">Rough estimate using static rates (shown as USD references in dropdown).</div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header fw-semibold">Expenses</div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Original</th>
+                                    <th>Converted</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var expense in Model.Expenses)
+                                {
+                                    <tr>
+                                        <td>@expense.Date.ToString("yyyy-MM-dd")</td>
+                                        <td>@expense.Category</td>
+                                        <td>@expense.OriginalAmount.ToString("N2") @expense.OriginalCurrency</td>
+                                        <td>@expense.ConvertedAmount.ToString("N2") @Model.Trip.HomeCurrency</td>
+                                        <td class="text-end">
+                                            <a asp-action="EditExpense" asp-route-id="@expense.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                            <form asp-action="DeleteExpense" method="post" class="d-inline" onsubmit="return confirm('Delete expense?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@expense.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header fw-semibold">Totals by Category</div>
+                <ul class="list-group list-group-flush">
+                    @foreach (var kvp in Model.ExpenseTotals.OrderBy(k => k.Key.ToString()))
+                    {
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>@kvp.Key</span>
+                            <strong>@Model.Trip.HomeCurrency @kvp.Value.ToString("N2")</strong>
+                        </li>
+                    }
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Total</span>
+                        <strong>@Model.Trip.HomeCurrency @Model.ExpenseTotal.ToString("N2")</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/currency-estimator.js" asp-append-version="true"></script>
+    @if (active == "expenses")
+    {
+        <script>
+            attachExpenseEstimator({
+                amountSelector: 'input[name="OriginalAmount"]',
+                fromSelector: '#expense-original-currency',
+                toSelector: '#expense-home-currency',
+                outputSelector: '#expense-converted-amount',
+                statusSelector: '#expense-estimate-status'
+            });
+        </script>
+    }
+}
+
+@if (active == "packing")
+{
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header fw-semibold">Apply Template</div>
+                <div class="card-body">
+                    <form asp-action="ApplyTemplate" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="tripId" value="@Model.Trip.Id" />
+                        <select name="templateId" class="form-select mb-2">
+                            @foreach (var template in Model.PackingTemplates)
+                            {
+                                <option value="@template.Id">@template.Name</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary w-100">Apply</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header fw-semibold">Add Packing Item</div>
+                <div class="card-body">
+                    <form asp-action="AddPackingItem" method="post" class="row g-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="tripId" value="@Model.Trip.Id" />
+                        <div class="col-md-4"><input name="Name" class="form-control" placeholder="Item name" required /></div>
+                        <div class="col-md-2"><input name="Quantity" class="form-control" type="number" min="1" value="1" /></div>
+                        <div class="col-md-3"><input name="Category" class="form-control" placeholder="Category" /></div>
+                        <div class="col-md-3"><input name="AssignedTo" class="form-control" placeholder="Assigned To" /></div>
+                        <div class="col-md-9"><input name="Notes" class="form-control" placeholder="Notes" /></div>
+                        <div class="col-md-3"><button class="btn btn-primary w-100">Add</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header fw-semibold">Packing List</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Packed</th>
+                            <th>Name</th>
+                            <th>Qty</th>
+                            <th>Category</th>
+                            <th>Assigned</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.PackingItems)
+                        {
+                            <tr>
+                                <td>
+                                    <form asp-action="TogglePacked" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm @(item.IsPacked ? "btn-success" : "btn-outline-secondary")">
+                                            @(item.IsPacked ? "Packed" : "Not packed")
+                                        </button>
+                                    </form>
+                                </td>
+                                <td>@item.Name</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.Category</td>
+                                <td>@item.AssignedTo</td>
+                                <td class="text-end">
+                                    <a asp-action="EditPackingItem" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <form asp-action="DeletePackingItem" method="post" class="d-inline" onsubmit="return confirm('Delete packing item?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@if (active == "documents")
+{
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Add Document Link</div>
+        <div class="card-body">
+            <form asp-action="AddDocumentLink" method="post" class="row g-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="tripId" value="@Model.Trip.Id" />
+                <div class="col-md-4"><input name="Title" class="form-control" placeholder="Title" required /></div>
+                <div class="col-md-5"><input name="Url" class="form-control" placeholder="https://..." required /></div>
+                <div class="col-md-3"><button class="btn btn-primary w-100">Add</button></div>
+                <div class="col-md-12"><input name="Notes" class="form-control" placeholder="Notes" /></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header fw-semibold">Document Links</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>URL</th>
+                            <th>Notes</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var link in Model.DocumentLinks)
+                        {
+                            <tr>
+                                <td>@link.Title</td>
+                                <td><a href="@link.Url" target="_blank" rel="noopener noreferrer">@link.Url</a></td>
+                                <td>@link.Notes</td>
+                                <td class="text-end">
+                                    <a asp-action="EditDocumentLink" asp-route-id="@link.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <form asp-action="DeleteDocumentLink" method="post" class="d-inline" onsubmit="return confirm('Delete document link?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@link.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@if (active == "settings")
+{
+    <div class="card">
+        <div class="card-header fw-semibold">Trip Settings</div>
+        <div class="card-body">
+            <form asp-action="UpdateSettings" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" value="@Model.Trip.Id" />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Name</label>
+                        <input class="form-control" name="Name" value="@Model.Trip.Name" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Destinations</label>
+                        <input class="form-control" name="Destinations" value="@Model.Trip.Destinations" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Start Date</label>
+                        <input class="form-control" name="StartDate" type="date" value="@Model.Trip.StartDate.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">End Date</label>
+                        <input class="form-control" name="EndDate" type="date" value="@Model.Trip.EndDate.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Home Currency</label>
+                        <input class="form-control text-uppercase" name="HomeCurrency" value="@Model.Trip.HomeCurrency" maxlength="3" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="Notes" rows="3">@Model.Trip.Notes</textarea>
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-3">Save Settings</button>
+            </form>
+        </div>
+    </div>
+}
