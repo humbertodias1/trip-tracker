@@ -9,7 +9,8 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+    // Avoid opening a DB connection at startup (important for cloud boot reliability).
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36))));
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
@@ -54,8 +55,10 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-using (var scope = app.Services.CreateScope())
+// Run seed data locally only. In production, a transient DB issue should not crash app boot.
+if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
     await SeedData.InitializeAsync(scope.ServiceProvider);
 }
 
