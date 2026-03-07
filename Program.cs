@@ -55,11 +55,26 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Run seed data locally only. In production, a transient DB issue should not crash app boot.
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
-    await SeedData.InitializeAsync(scope.ServiceProvider);
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await db.Database.MigrateAsync();
+
+        // Seed demo data only in local development.
+        if (app.Environment.IsDevelopment())
+        {
+            await SeedData.InitializeAsync(scope.ServiceProvider);
+        }
+    }
+    catch (Exception ex)
+    {
+        // Keep app booting so basic routes still work while logs expose the root problem.
+        logger.LogError(ex, "Database initialization failed at startup.");
+    }
 }
 
 app.Run();
